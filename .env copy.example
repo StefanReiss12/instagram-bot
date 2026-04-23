@@ -1,0 +1,9 @@
+# === Claude API ===
+ANTHROPIC_API_KEY=sua_chave_aqui
+
+# === Instagram Graph API ===
+INSTAGRAM_ACCESS_TOKEN=seu_token_aqui
+INSTAGRAM_USER_ID=seu_user_id_aqui
+
+# === imgbb (hospedagem de imagens gratuita) ===
+IMGBB_API_KEY=sua_chave_aqui

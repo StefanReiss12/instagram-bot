@@ -1,0 +1,13 @@
+.env
+output/
+__pycache__/
+*.pyc
+*.pyo
+Lib/
+Scripts/
+Include/
+pyvenv.cfg
+*.egg-info/
+.eggs/
+dist/
+build/
