@@ -2,8 +2,9 @@
 scheduler.py — Agendador automático de geração de carrosseis.
 
 Uso:
-    python scheduler.py          # inicia o agendador
-    python scheduler.py --now    # executa imediatamente (teste)
+    python scheduler.py            # inicia o agendador (9h e 14h)
+    python scheduler.py --now      # executa o carrossel das 9h imediatamente
+    python scheduler.py --now-14h  # executa o carrossel das 14h imediatamente
 """
 
 import sys
@@ -20,49 +21,67 @@ logging.basicConfig(level=logging.WARNING)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PYTHON   = sys.executable
-TZ = ZoneInfo("America/Sao_Paulo")
+TZ       = ZoneInfo("America/Sao_Paulo")
+
+SCHEDULE_14H_HOUR   = 14
+SCHEDULE_14H_MINUTE = 0
 
 
-def generate_job():
-    """Abre main.py numa janela CMD separada que permanece aberta."""
-    print(f"\nAgendador: iniciando gerador de carrossel ({datetime.now(TZ).strftime('%H:%M:%S')})...")
-    bat = os.path.join(BASE_DIR, "run_main.bat")
+def _open_cmd(bat_file: str):
     subprocess.Popen(
-        ["cmd", "/k", bat],
+        ["cmd", "/k", bat_file],
         cwd=BASE_DIR,
         creationflags=subprocess.CREATE_NEW_CONSOLE,
     )
 
 
-def _should_run_now():
-    """Retorna True se o horário de hoje já passou (computador ligou tarde)."""
-    now = datetime.now(TZ)
-    scheduled_today = now.replace(hour=SCHEDULE_HOUR, minute=SCHEDULE_MINUTE, second=0, microsecond=0)
-    return now >= scheduled_today
+def generate_job_9h():
+    print(f"\nAgendador: iniciando carrossel 9h ({datetime.now(TZ).strftime('%H:%M:%S')})...")
+    bat = os.path.join(BASE_DIR, "run_main.bat")
+    _open_cmd(bat)
+
+
+def generate_job_14h():
+    print(f"\nAgendador: iniciando carrossel 14h ({datetime.now(TZ).strftime('%H:%M:%S')})...")
+    bat = os.path.join(BASE_DIR, "run_main_14h.bat")
+    _open_cmd(bat)
 
 
 def start_scheduler():
-    # Verifica se já passou das 17:30 hoje e ainda não rodou
-    if _should_run_now():
-        print("Agendador: horário já passou hoje — rodando agora...")
-        generate_job()
+    now = datetime.now(TZ)
+
+    # Catch-up: se 9h já passou hoje, roda agora
+    scheduled_9h = now.replace(hour=SCHEDULE_HOUR, minute=SCHEDULE_MINUTE, second=0, microsecond=0)
+    if now >= scheduled_9h:
+        print("Agendador: horário das 9h já passou — rodando agora...")
+        generate_job_9h()
 
     scheduler = BlockingScheduler(timezone="America/Sao_Paulo")
 
     days_str = ",".join(str(d) for d in SCHEDULE_DAYS)
-    trigger = CronTrigger(
+
+    trigger_9h = CronTrigger(
         day_of_week=days_str,
         hour=SCHEDULE_HOUR,
         minute=SCHEDULE_MINUTE,
         timezone="America/Sao_Paulo",
     )
+    trigger_14h = CronTrigger(
+        day_of_week=days_str,
+        hour=SCHEDULE_14H_HOUR,
+        minute=SCHEDULE_14H_MINUTE,
+        timezone="America/Sao_Paulo",
+    )
 
-    scheduler.add_job(generate_job, trigger, id="carousel_generator")
+    scheduler.add_job(generate_job_9h,  trigger_9h,  id="carousel_9h")
+    scheduler.add_job(generate_job_14h, trigger_14h, id="carousel_14h")
 
-    next_run = trigger.get_next_fire_time(None, datetime.now(TZ))
+    next_9h  = trigger_9h.get_next_fire_time(None, now)
+    next_14h = trigger_14h.get_next_fire_time(None, now)
+
     print(f"\n Agendador iniciado!")
-    print(f"  Horário: {SCHEDULE_HOUR:02d}:{SCHEDULE_MINUTE:02d}")
-    print(f"  Próxima execução: {next_run.strftime('%d/%m/%Y %H:%M')}")
+    print(f"  9h  — próxima: {next_9h.strftime('%d/%m/%Y %H:%M')}")
+    print(f"  14h — próxima: {next_14h.strftime('%d/%m/%Y %H:%M')}")
     print(f"\n  Pressione Ctrl+C para parar\n")
 
     try:
@@ -72,8 +91,11 @@ def start_scheduler():
 
 
 if __name__ == "__main__":
-    if "--now" in sys.argv:
-        print("Executando geração imediata (teste)...")
-        generate_job()
+    if "--now-14h" in sys.argv:
+        print("Executando carrossel 14h imediatamente...")
+        generate_job_14h()
+    elif "--now" in sys.argv:
+        print("Executando carrossel 9h imediatamente...")
+        generate_job_9h()
     else:
         start_scheduler()
