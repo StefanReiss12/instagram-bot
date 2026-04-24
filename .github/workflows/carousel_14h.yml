@@ -1,0 +1,46 @@
+name: Carrossel 14h — Autoridade + Educação
+
+on:
+  schedule:
+    - cron: '0 17 * * *'   # 17h UTC = 14h BRT
+  workflow_dispatch:        # permite rodar manualmente pelo GitHub
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - name: Clonar repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Instalar fontes do sistema
+        run: |
+          sudo apt-get install -y fonts-liberation fonts-dejavu-core
+          fc-cache -f
+
+      - name: Instalar dependências Python
+        run: pip install -r requirements.txt
+
+      - name: Criar arquivo .env
+        run: |
+          cat > .env << 'EOF'
+          ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}
+          INSTAGRAM_ACCESS_TOKEN=${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+          INSTAGRAM_USER_ID=${{ secrets.INSTAGRAM_USER_ID }}
+          PEXELS_API_KEY=${{ secrets.PEXELS_API_KEY }}
+          CLOUDINARY_CLOUD_NAME=${{ secrets.CLOUDINARY_CLOUD_NAME }}
+          CLOUDINARY_API_KEY=${{ secrets.CLOUDINARY_API_KEY }}
+          CLOUDINARY_API_SECRET=${{ secrets.CLOUDINARY_API_SECRET }}
+          TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID=${{ secrets.TELEGRAM_CHAT_ID }}
+          EOF
+
+      - name: Executar bot das 14h
+        run: python main.py --14h
