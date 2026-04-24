@@ -133,32 +133,73 @@ def _get_next_theme() -> dict:
 
 
 # ── Fontes ──────────────────────────────────────────────────────────────────
-def _roboto(size, bold=False):
-    paths = (
-        ["C:/Windows/Fonts/Roboto-Bold.ttf", "C:/Windows/Fonts/segoeuib.ttf",
-         "C:/Windows/Fonts/arialbd.ttf", "C:/Windows/Fonts/calibrib.ttf"]
-        if bold else
-        ["C:/Windows/Fonts/Roboto-Regular.ttf", "C:/Windows/Fonts/segoeui.ttf",
-         "C:/Windows/Fonts/arial.ttf", "C:/Windows/Fonts/calibri.ttf"]
-    )
+_BOLD_FONTS = [
+    # Windows
+    "C:/Windows/Fonts/Roboto-Bold.ttf",
+    "C:/Windows/Fonts/segoeuib.ttf",
+    "C:/Windows/Fonts/arialbd.ttf",
+    "C:/Windows/Fonts/calibrib.ttf",
+    # Linux (Liberation / DejaVu / Ubuntu / Noto)
+    "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+    "/usr/share/fonts/truetype/ubuntu/Ubuntu-B.ttf",
+    "/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf",
+    "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
+]
+_REGULAR_FONTS = [
+    # Windows
+    "C:/Windows/Fonts/Roboto-Regular.ttf",
+    "C:/Windows/Fonts/segoeui.ttf",
+    "C:/Windows/Fonts/arial.ttf",
+    "C:/Windows/Fonts/calibri.ttf",
+    # Linux
+    "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    "/usr/share/fonts/truetype/ubuntu/Ubuntu-R.ttf",
+    "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
+    "/usr/share/fonts/truetype/freefont/FreeSans.ttf",
+]
+_IMPACT_FONTS = [
+    # Windows
+    "C:/Windows/Fonts/impact.ttf",
+    "C:/Windows/Fonts/arialbd.ttf",
+    "C:/Windows/Fonts/segoeuib.ttf",
+    # Linux
+    "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+    "/usr/share/fonts/truetype/ubuntu/Ubuntu-B.ttf",
+    "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
+]
+
+
+def _load_font(paths: list, size: int) -> ImageFont.FreeTypeFont:
     for p in paths:
         if os.path.exists(p):
             try:
                 return ImageFont.truetype(p, size)
             except Exception:
                 continue
-    return ImageFont.load_default()
-
-
-def _impact(size):
-    for p in ["C:/Windows/Fonts/impact.ttf", "C:/Windows/Fonts/arialbd.ttf",
-              "C:/Windows/Fonts/segoeuib.ttf"]:
-        if os.path.exists(p):
+    # Fallback seguro: tenta qualquer .ttf disponível no sistema
+    import glob
+    for pattern in ["/usr/share/fonts/**/*.ttf", "/usr/local/share/fonts/**/*.ttf"]:
+        for p in glob.glob(pattern, recursive=True):
             try:
                 return ImageFont.truetype(p, size)
             except Exception:
                 continue
-    return ImageFont.load_default()
+    # Último recurso: fonte bitmap com tamanho aproximado
+    try:
+        return ImageFont.load_default(size=size)
+    except TypeError:
+        return ImageFont.load_default()
+
+
+def _roboto(size, bold=False):
+    return _load_font(_BOLD_FONTS if bold else _REGULAR_FONTS, size)
+
+
+def _impact(size):
+    return _load_font(_IMPACT_FONTS, size)
 
 
 # ── Utilitários de texto ─────────────────────────────────────────────────────
@@ -167,11 +208,17 @@ def _wh(draw, text, font):
     try:
         bx = draw.textbbox((0, 0), text, font=font, anchor="lt")
         return bx[2], bx[3]
-    except OSError:
-        _find_bad_chars(draw, text, font)
-        text = _safe_text(text)
-        bx = draw.textbbox((0, 0), text, font=font, anchor="lt")
-        return bx[2], bx[3]
+    except (OSError, ValueError):
+        try:
+            _find_bad_chars(draw, text, font)
+            text = _safe_text(text)
+            bx = draw.textbbox((0, 0), text, font=font)
+            return bx[2], bx[3]
+        except Exception:
+            # bitmap font fallback
+            w = len(text) * (getattr(font, 'size', 10) // 2 + 2)
+            h = getattr(font, 'size', 10) + 4
+            return w, h
 
 
 def _wrap(draw, text, font, max_w):
