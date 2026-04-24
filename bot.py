@@ -152,6 +152,7 @@ def handle_callback(call):
                 call.message.chat.id,
                 f"Publicado com sucesso!\n\nPost ID: {ig_id}",
             )
+            threading.Thread(target=bot.stop_polling, daemon=True).start()
         except Exception as e:
             topic = meta.get("topic", "")
             err   = str(e)[:300]   # truncar para evitar mensagem gigante
